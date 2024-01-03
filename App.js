@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import React from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,13 +7,21 @@ import {
   Image,
   PermissionsAndroid,
   Platform,
+  Alert,
+  Linking,
+  TouchableOpacity,
+  FlatList,
 } from "react-native";
-import { BleManager } from "react-native-ble-plx";
+import { BleManager, Device } from "react-native-ble-plx";
 import btlogo from "./assets/bluetooth-logo.png";
+import { ApplicationProvider, Button } from "@ui-kitten/components";
+import * as eva from '@eva-design/eva';
 
 export const manager = new BleManager();
 
-export default function App() {
+const App = () => {
+  const [devices, setDevices] = useState([]);
+
   requestBluetoothPermission = async () => {
     if (Platform.OS === "ios") {
       return true;
@@ -56,51 +64,102 @@ export default function App() {
     return false;
   };
 
+  // const scanAndConnect = () => {
+  //   console.log("scanAndConnect");
+  //   manager.startDeviceScan(null, null, (error, device) => {
+  //     if (error) {
+  //       // Handle error (scanning will be stopped automatically)
+  //       return;
+  //     }
+
+  //     console.log("Found", device.name, device.localName);
+  //     manager.stopDeviceScan();
+  //     // Check if it is a device you are looking for based on advertisement data
+  //     // or other criteria.
+  //     // if (device.name === 'TI BLE Sensor Tag' ||
+  //     //     device.name === 'SensorTag') {
+
+  //     //     // Stop scanning as it's not necessary if you are scanning for one device.
+  //     //     manager.stopDeviceScan();
+
+  //     //     // Proceed with connection.
+  //     // }
+  //   });
+  // };
   const scanAndConnect = () => {
-    console.log("scanAndConnect");
-    manager.startDeviceScan(null, null, (error, device) => {
+    manager.startDeviceScan(null, null, (error, scannedDevice) => {
       if (error) {
-        // Handle error (scanning will be stopped automatically)
+        console.error('Error during scanning:', error);
         return;
       }
-
-      console.log("Found", device.name, device.localName);
-
-      // Check if it is a device you are looking for based on advertisement data
-      // or other criteria.
-      // if (device.name === 'TI BLE Sensor Tag' ||
-      //     device.name === 'SensorTag') {
-
-      //     // Stop scanning as it's not necessary if you are scanning for one device.
-      //     manager.stopDeviceScan();
-
-      //     // Proceed with connection.
-      // }
+      if (scannedDevice) {
+        // Add the scanned device to the list
+        setDevices((prevDevices) => {
+          if (!prevDevices.find((d) => d.id === scannedDevice.id)) {
+            return [...prevDevices, scannedDevice];
+          }
+          return prevDevices;
+        });
+      }
     });
-  };
+  }
+
+  const renderItem = ({ item }) => (
+    <View style={{ padding: 10 }}>
+      <Text>{`Name: ${item.name || 'Unknown'}`}</Text>
+      <Text>{`ID: ${item.id}`}</Text>
+      {/* You can add more information about the device */}
+    </View>
+  );
   const scanForDevice = async () => {
     const isPermissionsEnabled = await requestBluetoothPermission();
     if (isPermissionsEnabled) {
+      console.log(isPermissionsEnabled);
       scanAndConnect();
     }
+    else{
+      console.log(isPermissionsEnabled);
+    }
   };
-  React.useEffect(() => {
-    console.log("Setting up initial manager subscription");
-    manager.onStateChange((state) => {
-      const subscription = manager.onStateChange((state) => {
-        if (state === "PoweredOn") {
-          scanForDevice();
-          subscription.remove();
-        }
-      }, true);
-      return () => subscription.remove();
-    });
-  }, [manager]);
 
+const isBluetothOn = () => {
+  const subscription = manager.onStateChange(state => {
+    console.log(state);
+    if (state === 'PoweredOn') {
+      scanForDevice()
+      subscription.remove()
+    }
+    else if (state === 'PoweredOff'){
+      Alert.alert(
+        'Bluetooth is Off',
+        'Please turn on Bluetooth to use this feature.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Navigate to Bluetooth settings
+              Linking.sendIntent("android.settings.BLUETOOTH_SETTINGS");
+            },
+          },
+        ],
+        { cancelable: false }
+      );
+    }
+  }, true)
+  return () => subscription.remove()
+}
   return (
     <View style={styles.container}>
-      <Image source={btlogo} style={styles.logoImage} />
-      <Text>React Native Bluetooth Example</Text>
+      <Text style={{padding: 10}}>React Native Bluetooth Example</Text>
+      <Button size="small" onPress={() => isBluetothOn()}>
+        Scan Device
+      </Button>
+      <FlatList
+        data={devices}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        ListEmptyComponent={() => <Text>No devices found</Text>}
+      />
       <StatusBar style="auto" />
     </View>
   );
@@ -108,6 +167,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
+    paddingTop: 15,
     flex: 1,
     backgroundColor: "#fff",
     alignItems: "center",
@@ -117,5 +177,12 @@ const styles = StyleSheet.create({
     width: 100,
     height: 132,
     resizeMode: "stretch",
+    paddingBottom: 20
   },
 });
+
+export default () => (
+  <ApplicationProvider {...eva} theme={eva.light}>
+    <App />
+  </ApplicationProvider>
+);
