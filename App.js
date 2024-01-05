@@ -26,6 +26,7 @@ const App = () => {
   const [devices, setDevices] = useState([]);
   const [connectedDevice, setConnectedDevice] = useState(null);
   const [isConnect, setIsConnect] = useState(false);
+  const [data, setData] = useState(null)
   requestBluetoothPermission = async () => {
     if (Platform.OS === "ios") {
       return true;
@@ -96,6 +97,7 @@ const App = () => {
         deviceConnection.discoverAllServicesAndCharacteristics()
       );
       showValue(deviceConnection);
+      setIsConnect(true)
       manager.stopDeviceScan();
     } catch (e) {
       console.log("FAILED TO CONNECT", e);
@@ -109,11 +111,25 @@ const App = () => {
 
   const showValue = async (device) => {
     if (device) {
-      console.log(await device.monitorCharacteristicForService());
+      device.monitorCharacteristicForDevice(
+        deviceUUID,
+        serviceUUID,
+        characteristicUUID,
+        (error, characteristic) => {
+          if (error) {
+            console.error("Error monitoring characteristic:", error);
+            return;
+          }
+
+          // Characteristic value changed, handle it here
+          setData(characteristic.value);
+          console.log("Received characteristic value:", characteristic.value);
+        }
+      );
     } else {
       console.log("No Device Connected");
     }
-  }
+  };
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
