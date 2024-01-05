@@ -11,17 +11,20 @@ import {
   Linking,
   TouchableOpacity,
   FlatList,
+  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { BleManager, Device } from "react-native-ble-plx";
 import btlogo from "./assets/bluetooth-logo.png";
 import { ApplicationProvider, Button } from "@ui-kitten/components";
-import * as eva from '@eva-design/eva';
+import * as eva from "@eva-design/eva";
+import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 
 export const manager = new BleManager();
 
 const App = () => {
   const [devices, setDevices] = useState([]);
-
+  const [connectedDevice, setConnectedDevice] = useState(null);
   requestBluetoothPermission = async () => {
     if (Platform.OS === "ios") {
       return true;
@@ -64,36 +67,13 @@ const App = () => {
     return false;
   };
 
-  // const scanAndConnect = () => {
-  //   console.log("scanAndConnect");
-  //   manager.startDeviceScan(null, null, (error, device) => {
-  //     if (error) {
-  //       // Handle error (scanning will be stopped automatically)
-  //       return;
-  //     }
-
-  //     console.log("Found", device.name, device.localName);
-  //     manager.stopDeviceScan();
-  //     // Check if it is a device you are looking for based on advertisement data
-  //     // or other criteria.
-  //     // if (device.name === 'TI BLE Sensor Tag' ||
-  //     //     device.name === 'SensorTag') {
-
-  //     //     // Stop scanning as it's not necessary if you are scanning for one device.
-  //     //     manager.stopDeviceScan();
-
-  //     //     // Proceed with connection.
-  //     // }
-  //   });
-  // };
   const scanAndConnect = () => {
     manager.startDeviceScan(null, null, (error, scannedDevice) => {
       if (error) {
-        console.error('Error during scanning:', error);
+        console.error("Error during scanning:", error);
         return;
       }
       if (scannedDevice) {
-        // Add the scanned device to the list
         setDevices((prevDevices) => {
           if (!prevDevices.find((d) => d.id === scannedDevice.id)) {
             return [...prevDevices, scannedDevice];
@@ -102,55 +82,70 @@ const App = () => {
         });
       }
     });
-  }
+  };
+
+  const connectToDevice = async (device) => {
+    try {
+      const deviceConnection = await manager.connectToDevice(device.id);
+      setConnectedDevice(deviceConnection);
+      await deviceConnection.discoverAllServicesAndCharacteristics();
+      console.log("Connected to device:", deviceConnection.id);
+      console.log("Device service and characteristic:", deviceConnection.discoverAllServicesAndCharacteristics());
+      manager.stopDeviceScan();
+    } catch (e) {
+      console.log("FAILED TO CONNECT", e);
+      scanAndConnect();
+    }
+  };
+
+  const handleDeviceClick = (selectedDevice) => {
+    connectToDevice(selectedDevice);
+  };
 
   const renderItem = ({ item }) => (
-    <View style={{ padding: 10 }}>
-      <Text>{`Name: ${item.name || 'Unknown'}`}</Text>
+    <TouchableOpacity style={{ padding: 10 }} onPress={() => handleDeviceClick(item)}>
+      <Text>{`Name: ${item.name || "Unknown"}`}</Text>
       <Text>{`ID: ${item.id}`}</Text>
-      {/* You can add more information about the device */}
-    </View>
+    </TouchableOpacity>
   );
   const scanForDevice = async () => {
     const isPermissionsEnabled = await requestBluetoothPermission();
     if (isPermissionsEnabled) {
       console.log(isPermissionsEnabled);
       scanAndConnect();
-    }
-    else{
+    } else {
       console.log(isPermissionsEnabled);
     }
   };
 
-const isBluetothOn = () => {
-  const subscription = manager.onStateChange(state => {
-    console.log(state);
-    if (state === 'PoweredOn') {
-      scanForDevice()
-      subscription.remove()
-    }
-    else if (state === 'PoweredOff'){
-      Alert.alert(
-        'Bluetooth is Off',
-        'Please turn on Bluetooth to use this feature.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Navigate to Bluetooth settings
-              Linking.sendIntent("android.settings.BLUETOOTH_SETTINGS");
+  const isBluetothOn = () => {
+    const subscription = manager.onStateChange((state) => {
+      console.log(state);
+      if (state === "PoweredOn") {
+        scanForDevice();
+        subscription.remove();
+      } else if (state === "PoweredOff") {
+        Alert.alert(
+          "Bluetooth is Off",
+          "Please turn on Bluetooth to use this feature.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // Navigate to Bluetooth settings
+                Linking.sendIntent("android.settings.BLUETOOTH_SETTINGS");
+              },
             },
-          },
-        ],
-        { cancelable: false }
-      );
-    }
-  }, true)
-  return () => subscription.remove()
-}
+          ],
+          { cancelable: false }
+        );
+      }
+    }, true);
+    return () => subscription.remove();
+  };
   return (
     <View style={styles.container}>
-      <Text style={{padding: 10}}>React Native Bluetooth Example</Text>
+      <Text style={{ padding: 10 }}>React Native Bluetooth Example</Text>
       <Button size="small" onPress={() => isBluetothOn()}>
         Scan Device
       </Button>
@@ -163,7 +158,7 @@ const isBluetothOn = () => {
       <StatusBar style="auto" />
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -177,7 +172,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 132,
     resizeMode: "stretch",
-    paddingBottom: 20
+    paddingBottom: 20,
   },
 });
 
