@@ -25,6 +25,7 @@ export const manager = new BleManager();
 const App = () => {
   const [devices, setDevices] = useState([]);
   const [connectedDevice, setConnectedDevice] = useState(null);
+  const [isConnect, setIsConnect] = useState(false);
   requestBluetoothPermission = async () => {
     if (Platform.OS === "ios") {
       return true;
@@ -90,7 +91,10 @@ const App = () => {
       setConnectedDevice(deviceConnection);
       await deviceConnection.discoverAllServicesAndCharacteristics();
       console.log("Connected to device:", deviceConnection.id);
-      console.log("Device service and characteristic:", deviceConnection.discoverAllServicesAndCharacteristics());
+      console.log(
+        "Device service and characteristic:",
+        deviceConnection.discoverAllServicesAndCharacteristics()
+      );
       manager.stopDeviceScan();
     } catch (e) {
       console.log("FAILED TO CONNECT", e);
@@ -103,7 +107,10 @@ const App = () => {
   };
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity style={{ padding: 10 }} onPress={() => handleDeviceClick(item)}>
+    <TouchableOpacity
+      style={{ padding: 10 }}
+      onPress={() => handleDeviceClick(item)}
+    >
       <Text>{`Name: ${item.name || "Unknown"}`}</Text>
       <Text>{`ID: ${item.id}`}</Text>
     </TouchableOpacity>
@@ -149,12 +156,14 @@ const App = () => {
       <Button size="small" onPress={() => isBluetothOn()}>
         Scan Device
       </Button>
-      <FlatList
-        data={devices}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={() => <Text>No devices found</Text>}
-      />
+      {!isConnect ? (
+        <FlatList
+          data={devices}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          ListEmptyComponent={() => <Text>No devices found</Text>}
+        />
+      ) : null}
       <StatusBar style="auto" />
     </View>
   );
