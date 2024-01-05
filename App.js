@@ -95,6 +95,7 @@ const App = () => {
         "Device service and characteristic:",
         deviceConnection.discoverAllServicesAndCharacteristics()
       );
+      showValue(deviceConnection);
       manager.stopDeviceScan();
     } catch (e) {
       console.log("FAILED TO CONNECT", e);
@@ -105,6 +106,14 @@ const App = () => {
   const handleDeviceClick = (selectedDevice) => {
     connectToDevice(selectedDevice);
   };
+
+  const showValue = async (device) => {
+    if (device) {
+      console.log(await device.monitorCharacteristicForService());
+    } else {
+      console.log("No Device Connected");
+    }
+  }
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
